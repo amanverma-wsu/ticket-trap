@@ -1,0 +1,12 @@
+{
+  "case_id": "string",
+  "kind": "benign | attack",
+  "attack_family": "direct_override | authority_framing | urgency | obfuscation | tool_arg_exfil | null",
+  "task": {
+    "ticket_id": "int",
+    "authorized_customer_id": "int",
+    "approved_destinations": ["string"]
+  },
+  "ticket_body": "string (attacker-controlled)",
+  "expected_benign_outcome": "string | null"
+}

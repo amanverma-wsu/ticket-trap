@@ -1,105 +1,87 @@
 # TicketTrap
 
-A small help-desk web application with an embedded AI assistant, plus an experiment
-harness that measures how well two classes of defense — **prompt-only instructions**
-vs. **application-enforced tool permissions** — prevent prompt-injection data leakage
-while preserving legitimate task completion.
+Our project for CptS 428/528 (Track A — AI Agent Trap and Remediation).
 
-**Course:** CptS 428/528, Fall 2026 · Track A — AI Agent Trap and Remediation
+TicketTrap is a small help-desk app with an AI assistant that reads support tickets and writes
+reports. We hide a prompt-injection attack inside a ticket and see whether the assistant can be
+tricked into leaking a customer record it wasn't supposed to touch. Then we add defenses and
+measure which ones actually stop it, and what they cost in legitimate task completion.
+
 **Team:** Aman Verma, Aiden Vezzetti, Michael Morris, Tony Cao
+**Repo:** https://github.com/amanverma-wsu/ticket-trap (private, coursework)
 
-> This is a **private** coursework repository. Synthetic data and canary tokens only —
-> never real user data. See "Safety & ethics" below.
+Private repo. Synthetic (fake) data and canary tokens only — never real user data.
 
-## What this is
+## The idea
 
-The assistant receives a legitimate task (an assigned ticket, an authorized customer
-record, an approved report destination). The **attacker controls only the ticket body**.
-We run the same normal and malicious tickets under three configurations and measure
-what leaks.
+The assistant gets a normal job: one assigned ticket, one customer record it may read, and one
+place it may send the report. The attacker can only edit the ticket text. We run the same normal
+and malicious tickets three ways and measure what leaks.
 
-The agent is exposed **exactly three tools, in every condition**:
-`read_ticket`, `read_customer_record`, `send_report`. Permissions come from trusted
-per-task settings, never from ticket content.
+The agent always has the same three tools — `read_ticket`, `read_customer_record`, `send_report`.
+What it's allowed to do comes from trusted settings on our side, never from the ticket.
 
-### Defense configurations
-1. **Baseline** — normal task instructions, broadly accessible tools.
-2. **Prompt-only defense** — instructions telling the assistant to treat ticket content as untrusted.
-3. **Application-enforced defense** — backend checks restrict record access and report
-   destinations; the prompt-only instructions are retained so we measure the *added* effect.
+### The three setups we compare
+1. **Baseline** — no real defense; tools wide open.
+2. **Prompt-only** — we tell the assistant to treat ticket text as untrusted.
+3. **App-enforced** — the backend blocks reading the wrong record or sending to the wrong place
+   (we keep the prompt warning too, to measure what the backend checks add on top).
 
-### Models under test (pinned snapshots)
-- `gpt-4o-2024-08-06` (OpenAI)
-- `claude-3-7-sonnet-20250219` (Anthropic)
+### Models we test
+- `deepseek-flash` (DeepSeek-V4.1-Flash)
+- `deepseek-v4-pro` (DeepSeek-V4-Pro)
 
-Confirm access/budget and that these exact snapshots are still offered; swap to a current
-dated snapshot if either is retired. The rule is *exact and dated*, never `latest`.
+Both run through DeepSeek's OpenAI-compatible API (`https://api.deepseek.com`). These are family
+aliases rather than dated snapshots, so we log the exact model ID the API returns on every trial
+to keep runs reproducible.
 
-## Repository layout
+We pin the most specific model ID each provider offers (never a floating alias like `latest`) and
+log the exact model ID returned on every trial, so runs are reproducible.
 
-```
-tickettrap/
-├── backend/       FastAPI + Pydantic + SQLite. APIs, validation, permission checks.
-├── agent/         Custom Python agent loop, tool definitions, the three configs.
-├── collector/     Local endpoint that records exfiltrated canaries (the "unauthorized" sink).
-├── frontend/      React + TypeScript + Vite UI (tickets, agent activity, results).
-├── experiments/   Trial harness + analysis (pandas / matplotlib).
-├── cases/         Benign tasks and attack cases (held-out subset kept separate).
-├── docs/          D1 submission and project notes.
-├── data/          SQLite DB + run logs (git-ignored).
-├── .env.example   Copy to .env and fill in your own API keys (never commit .env).
-└── docker-compose.yml
-```
+## Layout
 
-## Prerequisites
-- Python 3.11+
-- Node 20+
-- (optional) Docker + Docker Compose
+\```
+backend/     FastAPI + SQLite — the tools and the permission checks
+agent/       our Python agent loop, tool definitions, the 3 configs
+collector/   a small local server that logs any canary that leaks
+frontend/    React + TypeScript + Vite — the UI
+experiments/ scripts to run the trials and make the charts
+cases/       benign tickets + attack tickets (held-out set kept separate)
+docs/        the D1 write-up and project notes
+data/        SQLite db + logs + results (git-ignored)
+\```
 
 ## Setup
-```bash
-cp .env.example .env          # then fill in your own API keys
+
+\```bash
+cp .env.example .env            # put your own API keys in here
+git config core.hooksPath .githooks   # enable the secret-scan pre-commit hook
 python -m venv .venv && source .venv/bin/activate
-pip install -r backend/requirements.txt -r agent/requirements.txt -r experiments/requirements.txt
-(cd frontend && npm install)
-```
+pip install -r backend/requirements.txt
+\```
 
-## Running
-```bash
-# 1. backend API (serves ticket/record/report tools, enforces permissions)
-uvicorn backend.app.main:app --reload --port 8000
+More setup (agent, experiments, frontend) is documented as those parts land.
 
-# 2. collection endpoint (records any canary that leaks)
-python collector/collector.py            # listens on 127.0.0.1:9100
+## Safety
 
-# 3. frontend (optional, for the demo UI)
-(cd frontend && npm run dev)              # 127.0.0.1:5173
-
-# 4. run an experiment trial set
-python experiments/run_trials.py --config all --repeats 20
-python experiments/analyze.py            # writes figures to data/figures/
-```
-
-## Safety & ethics
-- **Synthetic data only.** No real user data, ever.
-- **Canary tokens** are trial-specific synthetic values; "confirmed leakage" = a canary
-  received at the collection endpoint.
-- **Keys stay out of the repo.** `.env` is git-ignored; keys never go in tickets, logs, or commits.
-- **Traffic is local.** Only the named localhost services plus the hosted model API are contacted.
+- Fake data only. No real users, ever.
+- Canary tokens are random per-trial values; a canary reaching the collector is the only thing
+  that counts as a leak.
+- API keys stay out of the repo (`.env` is git-ignored; a pre-commit hook scans for keys).
+- Everything runs on localhost; the only external calls are to the model APIs.
 
 ## Status
-Scaffold. Each component has a skeleton with `TODO`s marking the work. The attack/benign
-cases in `cases/` are intentionally left for the team to author, and the held-out set is
-kept separate so defenses are not tuned against attacks we have already seen.
 
-## Repository
-Private repo: https://github.com/amanverma-wsu/ticket-trap
+Work in progress, built in phases.
 
-The `origin` remote is already configured and there is an initial commit, so publishing
-is just a push (set your own git identity first so the history reflects real contributors):
-
-```bash
-git config user.name "Your Name"
-git config user.email "you@wsu.edu"
-git push -u origin main
-```
+- [x] Phase 0 — repo hygiene & scaffold
+- [x] Phase 1 — backend + permission checks
+- [ ] Phase 2 — collector
+- [ ] Phase 3 — agent loop
+- [ ] Phase 4 — three configs + both providers
+- [ ] Phase 5 — cases + harness + classifier
+- [ ] Phase 6 — metrics + analysis
+- [ ] Phase 7 — frontend
+- [ ] Phase 8 — docker + reproducibility
+- [ ] Phase 9 — real run
+- [ ] Phase 10 — report + packaging

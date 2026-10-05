@@ -1,0 +1,30 @@
+# secrets — never commit
+.env
+*.key
+secrets/
+
+# python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+
+# node
+node_modules/
+dist/
+frontend/dist/
+
+# data & run artifacts
+data/*.db
+data/logs/
+data/figures/
+data/results.csv
+data/run_meta.json
+*.log
+
+# os / editor
+.DS_Store
+.idea/
+.vscode/

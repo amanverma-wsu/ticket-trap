@@ -1,35 +1,106 @@
-"""SQLite init + synthetic seed. Records carry per-trial canaries."""
+"""SQLite persistence. State is fully reset and reseeded between trials.
+
+The DB path comes from TICKETTRAP_DB if set (tests point this at a temp file),
+otherwise data/tickettrap.db at the repo root.
+"""
+import os
 import sqlite3
 from pathlib import Path
 
-DB_PATH = Path(__file__).resolve().parents[2] / "data" / "tickettrap.db"
+from .models import CustomerRecord, Ticket
 
 
-def get_conn():
-    DB_PATH.parent.mkdir(parents=True, exist_ok=True)
-    return sqlite3.connect(DB_PATH)
+def db_path() -> Path:
+    override = os.environ.get("TICKETTRAP_DB")
+    if override:
+        return Path(override)
+    return Path(__file__).resolve().parents[2] / "data" / "tickettrap.db"
 
 
-def reset_and_seed(canary_for: dict[int, str]):
-    """Reset all state between trials and seed synthetic records.
+def get_conn() -> sqlite3.Connection:
+    path = db_path()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    conn = sqlite3.connect(path)
+    conn.row_factory = sqlite3.Row
+    return conn
 
-    canary_for maps customer_id -> trial-specific canary string.
-    """
+
+def reset_and_seed(customers: list[CustomerRecord], ticket: Ticket) -> None:
+    """Drop all tables and seed a fresh world for one trial."""
     conn = get_conn()
-    c = conn.cursor()
-    c.executescript(
-        """
-        DROP TABLE IF EXISTS tickets;
-        DROP TABLE IF EXISTS customers;
-        CREATE TABLE customers (id INTEGER PRIMARY KEY, name TEXT, email TEXT, secret_canary TEXT);
-        CREATE TABLE tickets (id INTEGER PRIMARY KEY, customer_id INTEGER, body TEXT);
-        """
-    )
-    # TODO: seed realistic synthetic customers/tickets for each case.
-    for cid, canary in canary_for.items():
-        c.execute(
-            "INSERT INTO customers VALUES (?,?,?,?)",
-            (cid, f"Synthetic {cid}", f"user{cid}@example.test", canary),
+    try:
+        conn.executescript(
+            """
+            DROP TABLE IF EXISTS customers;
+            DROP TABLE IF EXISTS tickets;
+            DROP TABLE IF EXISTS reports;
+            CREATE TABLE customers (
+                id INTEGER PRIMARY KEY, name TEXT, email TEXT, secret_canary TEXT
+            );
+            CREATE TABLE tickets (
+                id INTEGER PRIMARY KEY, customer_id INTEGER, body TEXT
+            );
+            CREATE TABLE reports (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                ticket_id INTEGER, destination TEXT, content TEXT
+            );
+            """
         )
-    conn.commit()
-    conn.close()
+        for c in customers:
+            conn.execute(
+                "INSERT INTO customers (id, name, email, secret_canary) VALUES (?, ?, ?, ?)",
+                (c.id, c.name, c.email, c.secret_canary),
+            )
+        conn.execute(
+            "INSERT INTO tickets (id, customer_id, body) VALUES (?, ?, ?)",
+            (ticket.id, ticket.customer_id, ticket.body),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def get_ticket(ticket_id: int) -> Ticket | None:
+    conn = get_conn()
+    try:
+        row = conn.execute(
+            "SELECT id, customer_id, body FROM tickets WHERE id = ?", (ticket_id,)
+        ).fetchone()
+        return Ticket(**dict(row)) if row else None
+    finally:
+        conn.close()
+
+
+def get_customer(customer_id: int) -> CustomerRecord | None:
+    conn = get_conn()
+    try:
+        row = conn.execute(
+            "SELECT id, name, email, secret_canary FROM customers WHERE id = ?",
+            (customer_id,),
+        ).fetchone()
+        return CustomerRecord(**dict(row)) if row else None
+    finally:
+        conn.close()
+
+
+def record_report(ticket_id: int, destination: str, content: str) -> None:
+    conn = get_conn()
+    try:
+        conn.execute(
+            "INSERT INTO reports (ticket_id, destination, content) VALUES (?, ?, ?)",
+            (ticket_id, destination, content),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def list_reports() -> list[dict]:
+    conn = get_conn()
+    try:
+        rows = conn.execute(
+            "SELECT ticket_id, destination, content FROM reports ORDER BY id"
+        ).fetchall()
+        return [dict(r) for r in rows]
+    finally:
+        conn.close()

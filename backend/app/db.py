@@ -1,8 +1,5 @@
-"""SQLite persistence. State is fully reset and reseeded between trials.
-
-The DB path comes from TICKETTRAP_DB if set (tests point this at a temp file),
-otherwise data/tickettrap.db at the repo root.
-"""
+"""SQLite persistence; state is reset and reseeded between trials.
+DB path comes from TICKETTRAP_DB if set, else data/tickettrap.db at the repo root."""
 import os
 import sqlite3
 from pathlib import Path
@@ -26,7 +23,6 @@ def get_conn() -> sqlite3.Connection:
 
 
 def reset_and_seed(customers: list[CustomerRecord], ticket: Ticket) -> None:
-    """Drop all tables and seed a fresh world for one trial."""
     conn = get_conn()
     try:
         conn.executescript(

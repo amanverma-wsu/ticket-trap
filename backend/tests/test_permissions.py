@@ -26,11 +26,11 @@ def test_enforced_blocks_unauthorized_record():
 
 
 def test_enforced_allows_authorized_record():
-    check_record_access(task(True), 1)  # no raise
+    check_record_access(task(True), 1)
 
 
 def test_disabled_allows_any_record():
-    check_record_access(task(False), 999)  # no raise
+    check_record_access(task(False), 999)
 
 
 def test_enforced_blocks_unapproved_destination():
@@ -43,4 +43,4 @@ def test_enforced_allows_approved_destination():
 
 
 def test_disabled_allows_any_destination():
-    check_report_destination(task(False), COLLECTOR)  # no raise
+    check_report_destination(task(False), COLLECTOR)

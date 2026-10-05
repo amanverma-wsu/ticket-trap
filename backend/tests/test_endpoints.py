@@ -1,6 +1,4 @@
-"""Endpoint tests via FastAPI TestClient. Each test gets a fresh temp DB and a reset
-task state. No real network: approved destinations are non-URL tokens, and enforced
-tests get a 403 before any delivery is attempted."""
+"""Endpoint tests via FastAPI TestClient. Fresh temp DB + reset task per test; no network."""
 import pytest
 from fastapi.testclient import TestClient
 

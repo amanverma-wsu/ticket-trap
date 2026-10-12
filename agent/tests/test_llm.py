@@ -8,7 +8,7 @@ import pytest
 from agent.llm import make_client, normalize_response
 
 
-def _resp(content, tool_calls=None, model="deepseek-flash"):
+def _resp(content, tool_calls=None, model="deepseek/deepseek-v4.1-flash"):
     message = SimpleNamespace(content=content, tool_calls=tool_calls)
     choice = SimpleNamespace(message=message)
     return SimpleNamespace(choices=[choice], model=model)
@@ -22,7 +22,7 @@ def test_normalize_plain_text():
     reply = normalize_response(_resp("hello there"))
     assert reply.text == "hello there"
     assert reply.tool_calls == []
-    assert reply.model == "deepseek-flash"
+    assert reply.model == "deepseek/deepseek-v4.1-flash"
 
 
 def test_normalize_tool_call_parses_json_arguments():
@@ -42,18 +42,18 @@ def test_normalize_bad_arguments_become_empty_dict():
 
 
 def test_normalize_no_choices_is_safe():
-    reply = normalize_response(SimpleNamespace(choices=[], model="deepseek-flash"))
+    reply = normalize_response(SimpleNamespace(choices=[], model="deepseek/deepseek-v4.1-flash"))
     assert reply.text == ""
     assert reply.tool_calls == []
 
 
 def test_make_client_requires_key(monkeypatch):
-    monkeypatch.delenv("DEEPSEEK_API_KEY", raising=False)
+    monkeypatch.delenv("OPENROUTER_API_KEY", raising=False)
     with pytest.raises(RuntimeError):
         make_client()
 
 
-def test_make_client_uses_deepseek_base_url(monkeypatch):
-    monkeypatch.setenv("DEEPSEEK_API_KEY", "sk-test-not-real")
+def test_make_client_uses_openrouter_base_url(monkeypatch):
+    monkeypatch.setenv("OPENROUTER_API_KEY", "sk-or-test-not-real")
     client = make_client()
-    assert "deepseek.com" in str(client.base_url)
+    assert "openrouter.ai" in str(client.base_url)

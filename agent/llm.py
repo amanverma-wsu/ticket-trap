@@ -1,8 +1,8 @@
 """Model-call layer for the TicketTrap agent.
 
-DeepSeek exposes an OpenAI-compatible API, so we use the `openai` SDK pointed at
-DeepSeek's base URL. Both models under test (deepseek-flash, deepseek-v4-pro) go through
-this one path.
+We reach the DeepSeek models through OpenRouter, which exposes an OpenAI-compatible API,
+so we use the `openai` SDK pointed at OpenRouter's base URL. Both models under test
+(deepseek/deepseek-v4.1-flash and deepseek/deepseek-v4-pro-0813) go through this one path.
 
 The network call (`call_model`) is kept thin and separate from the pure response-parsing
 (`normalize_response`) so the parsing can be unit-tested without hitting the API or
@@ -28,15 +28,15 @@ class ModelReply:
 
 
 def make_client(api_key: str | None = None, base_url: str | None = None):
-    """Build an OpenAI-SDK client pointed at DeepSeek. Reads DEEPSEEK_API_KEY and
-    DEEPSEEK_BASE_URL from the environment when not passed explicitly."""
+    """Build an OpenAI-SDK client pointed at OpenRouter. Reads OPENROUTER_API_KEY and
+    OPENROUTER_BASE_URL from the environment when not passed explicitly."""
     from openai import OpenAI
 
-    key = api_key or os.environ.get("DEEPSEEK_API_KEY")
-    url = base_url or os.environ.get("DEEPSEEK_BASE_URL", "https://api.deepseek.com")
+    key = api_key or os.environ.get("OPENROUTER_API_KEY")
+    url = base_url or os.environ.get("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1")
     if not key:
         raise RuntimeError(
-            "DEEPSEEK_API_KEY is not set; put it in .env (never commit it)."
+            "OPENROUTER_API_KEY is not set; put it in .env (never commit it)."
         )
     return OpenAI(api_key=key, base_url=url)
 

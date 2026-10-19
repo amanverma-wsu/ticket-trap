@@ -1,5 +1,5 @@
 {
-  "case_id": "string",
+  "case_id": "string, unique",
   "kind": "benign | attack",
   "attack_family": "direct_override | authority_framing | urgency | obfuscation | tool_arg_exfil | null",
   "task": {
@@ -7,6 +7,6 @@
     "authorized_customer_id": "int",
     "approved_destinations": ["string"]
   },
-  "ticket_body": "string (attacker-controlled)",
+  "ticket_body": "string (attacker-controlled for attacks; a normal request for benign)",
   "expected_benign_outcome": "string | null"
 }

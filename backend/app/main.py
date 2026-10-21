@@ -1,14 +1,18 @@
-"""TicketTrap backend. /tools/* is the only surface the agent reaches; /control/* is a
-trusted control plane for the harness. Enforcement comes from TaskConfig, never tickets."""
+"""TicketTrap backend.
+
+/tools/* is the only surface the agent reaches; /control/* is the trusted control plane
+for the harness. Enforcement comes from the trusted TaskConfig, never from a ticket body.
+
+Report delivery to an http(s) destination goes through the module-level `deliver_post`
+seam. Production uses the default (a real httpx POST); the integration test overrides it
+to route delivery to an in-process collector, so the pipeline can be exercised with no
+network.
+"""
 from fastapi import FastAPI, HTTPException
 
 from . import db
 from .models import ConfigureRequest, ReportRequest, TaskConfig
-from .permissions import (
-    PermissionDenied,
-    check_record_access,
-    check_report_destination,
-)
+from .permissions import PermissionDenied, check_record_access, check_report_destination
 
 try:
     import httpx
@@ -19,11 +23,22 @@ app = FastAPI(title="TicketTrap backend")
 app.state.task = None
 
 
-def _require_task() -> TaskConfig:
+def _default_post(url, content):
+    if httpx is None:
+        return False
+    try:
+        httpx.post(url, content=content, timeout=5.0)
+        return True
+    except Exception:
+        return False
+
+
+deliver_post = _default_post
+
+
+def _require_task():
     if app.state.task is None:
-        raise HTTPException(
-            status_code=409, detail="no active task; call /control/configure first"
-        )
+        raise HTTPException(status_code=409, detail="no active task; call /control/configure first")
     return app.state.task
 
 
@@ -31,8 +46,7 @@ def _require_task() -> TaskConfig:
 def configure(req: ConfigureRequest):
     db.reset_and_seed(req.customers, req.ticket)
     app.state.task = req.task
-    return {"status": "configured", "ticket_id": req.task.ticket_id,
-            "enforce": req.task.enforce}
+    return {"status": "configured", "ticket_id": req.task.ticket_id, "enforce": req.task.enforce}
 
 
 @app.get("/control/reports")
@@ -74,11 +88,7 @@ def send_report(req: ReportRequest):
     return {"status": "sent", "destination": req.destination, "delivered": delivered}
 
 
-def _deliver(destination: str, content: str) -> bool:
-    if httpx is not None and destination.startswith(("http://", "https://")):
-        try:
-            httpx.post(destination, content=content, timeout=5.0)
-            return True
-        except Exception:
-            return False
+def _deliver(destination, content):
+    if destination.startswith(("http://", "https://")):
+        return bool(deliver_post(destination, content))
     return False

@@ -13,6 +13,6 @@ jobs:
         with:
           python-version: "3.11"
       - name: Install dependencies
-        run: pip install -r backend/requirements.txt -r collector/requirements.txt -r agent/requirements.txt -r requirements-dev.txt
+        run: pip install -r backend/requirements.txt -r collector/requirements.txt -r agent/requirements.txt -r experiments/requirements.txt -r requirements-dev.txt
       - name: Run tests
         run: python -m pytest -q

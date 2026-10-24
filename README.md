@@ -85,3 +85,16 @@ Work in progress, built in phases.
 - [ ] Phase 8 — docker + reproducibility
 - [ ] Phase 9 — real run
 - [ ] Phase 10 — report + packaging
+
+## Running the harness
+
+Requires Python 3.10.
+
+    python -m venv .venv
+    source .venv/bin/activate
+    pip install -r requirements.txt
+    python -m experiments.harness
+
+This runs the full pipeline from a clean checkout with no API key, writes
+`data/results.csv`, and prints the attack leak rate per configuration.
+Run the test suite with `python -m pytest -q`.

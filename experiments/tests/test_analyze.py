@@ -1,12 +1,7 @@
 """Tests for the analysis aggregation and a smoke test for the figures."""
 import pandas as pd
-import pytest
 
-from experiments.analyze import (
-    make_figures,
-    summarize,
-    tradeoff_points,
-)
+from experiments.analyze import make_figures, summarize, tradeoff_points
 
 
 def sample_df():

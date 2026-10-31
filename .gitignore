@@ -28,3 +28,4 @@ data/run_meta.json
 .DS_Store
 .idea/
 .vscode/
+data/transcripts/

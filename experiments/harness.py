@@ -145,16 +145,19 @@ def make_live_model_fn(temperature=0.0):
 
 
 def run_live(cases, configs, backend_client, collector_check, models, repeats,
-             confirm=False, transcripts_dir=None):
+             confirm=False, transcripts_dir=None, temperature=0.0):
     n = len(models) * len(configs) * len(cases) * repeats
     print(f"LIVE run: {len(models)} model(s) x {len(configs)} config(s) x {len(cases)} case(s) "
-          f"x {repeats} repeat(s) = {n} trials.")
+          f"x {repeats} repeat(s) = {n} trials (temperature={temperature}).")
     print("Each trial makes several paid API calls through OpenRouter. This spends money.")
+    if temperature == 0.0 and repeats > 1:
+        print("Note: temperature=0 is near-deterministic, so repeats will be nearly identical. "
+              "Use --temperature 0.7 to estimate success rates across repeats.")
     if not confirm:
         if input("Type 'yes' to proceed: ").strip().lower() != "yes":
             print("Aborted.")
             return []
-    live_fn = make_live_model_fn()
+    live_fn = make_live_model_fn(temperature=temperature)
     rows = []
     for model_id in models:
         rows.extend(run_suite(cases, configs, backend_client, collector_check,
@@ -193,6 +196,8 @@ def main(argv=None):
     ap.add_argument("--live", action="store_true", help="use the real models via OpenRouter (spends money)")
     ap.add_argument("--yes", action="store_true", help="skip the live-run confirmation prompt")
     ap.add_argument("--transcripts", default="data/transcripts", help="directory for per-trial transcripts")
+    ap.add_argument("--temperature", type=float, default=0.0,
+                    help="sampling temperature for live runs; use 0.7 with --repeats to get success rates")
     args = ap.parse_args(argv)
 
     backend_client, collector_check = build_inprocess(
@@ -203,7 +208,7 @@ def main(argv=None):
     if args.live:
         models = [m.strip() for m in os.environ.get("MODELS", DEFAULT_MODELS).split(",") if m.strip()]
         rows = run_live(cases, configs, backend_client, collector_check, models, args.repeats,
-                        confirm=args.yes, transcripts_dir=args.transcripts)
+                        confirm=args.yes, transcripts_dir=args.transcripts, temperature=args.temperature)
         if not rows:
             return []
     else:

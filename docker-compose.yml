@@ -1,19 +1,31 @@
+
 services:
   backend:
-    build: ./backend
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    command: uvicorn backend.app.main:app --host 0.0.0.0 --port 8000
     ports: ["127.0.0.1:8000:8000"]
-    env_file: [.env]
+    environment:
+      TICKETTRAP_DB: /app/data/tickettrap.db
     volumes: ["./data:/app/data"]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/openapi.json', timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   collector:
-    build: ./collector
-    command: python collector.py
+    build:
+      context: .
+      dockerfile: collector/Dockerfile
+    command: uvicorn collector.collector:app --host 0.0.0.0 --port 9100
     ports: ["127.0.0.1:9100:9100"]
-    env_file: [.env]
+    environment:
+      TICKETTRAP_COLLECTOR_LOG: /app/data/logs/collector.jsonl
     volumes: ["./data:/app/data"]
-
-  frontend:
-    build: ./frontend
-    command: npm run dev -- --host
-    ports: ["127.0.0.1:5173:5173"]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:9100/openapi.json', timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
